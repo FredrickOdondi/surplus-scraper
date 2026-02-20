@@ -139,20 +139,12 @@ class SurplusScraper:
                 listing_data['description'] = text
                 break
 
-        # Extract main image - img.imgprev
+        # Extract main image only - img.imgprev
         main_img = soup.select_one('img.imgprev')
         if main_img:
             src = main_img.get('src')
             if src:
                 full_url = urljoin(self.BASE_URL, src)
-                listing_data['pictures'].append(full_url)
-
-        # Extract additional images - a.addlImage
-        additional_imgs = soup.select('a.addlImage[href*="clientresources"]')
-        for img_link in additional_imgs:
-            href = img_link.get('href')
-            if href:
-                full_url = urljoin(self.BASE_URL, href)
                 listing_data['pictures'].append(full_url)
 
         # Extract all table data at once for better accuracy
