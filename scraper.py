@@ -144,8 +144,13 @@ class SurplusScraper:
         if main_img:
             src = main_img.get('src')
             if src:
+                # Clean up the image path - remove any extra parameters
+                src = src.split('?')[0]
                 full_url = urljoin(self.BASE_URL, src)
                 listing_data['pictures'].append(full_url)
+                # DEBUG: Only add ONE image, clear any extras
+                if len(listing_data['pictures']) > 1:
+                    listing_data['pictures'] = [listing_data['pictures'][0]]
 
         # Extract all table data at once for better accuracy
         # The site uses a specific table structure with td.txtb (labels) and td.txt (values)
