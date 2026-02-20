@@ -1,6 +1,0 @@
-__pycache__
-*.pyc
-.git
-.claude
-static/templates
-*.log
