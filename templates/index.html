@@ -317,6 +317,19 @@
                     <label for="maxListings">Max Listings (optional)</label>
                     <input type="number" id="maxListings" placeholder="Leave empty for all">
                 </div>
+                <div class="input-group">
+                    <label for="category">Category</label>
+                    <select id="category" style="padding: 12px 16px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1rem; width: 200px;">
+                        <option value="">All Categories</option>
+                        <option value="m_5">Semi / Hybrid Assy</option>
+                        <option value="m_5_5">Die Bonders</option>
+                        <option value="m_5_5_3">Flip Chip Bonders</option>
+                        <option value="m_1">Frontend Equipment</option>
+                        <option value="m_2">Backend Equipment</option>
+                        <option value="m_3">Test Equipment</option>
+                        <option value="m_4">Assembly</option>
+                    </select>
+                </div>
                 <button class="btn btn-primary" id="startBtn" onclick="startScraping()">
                     <span id="btnText">Start Scraping</span>
                 </button>
@@ -385,6 +398,7 @@
 
         async function startScraping() {
             const maxListings = document.getElementById('maxListings').value;
+            const category = document.getElementById('category').value;
             const startBtn = document.getElementById('startBtn');
             const btnText = document.getElementById('btnText');
 
@@ -395,7 +409,10 @@
                 const response = await fetch('/api/scrape', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ max_listings: maxListings ? parseInt(maxListings) : null })
+                    body: JSON.stringify({
+                        max_listings: maxListings ? parseInt(maxListings) : null,
+                        category_menuid: category || null
+                    })
                 });
 
                 const data = await response.json();
@@ -483,7 +500,7 @@
                 // Parse pictures
                 let picturesHtml = '-';
                 if (item.pictures) {
-                    const pics = item.pictures.split(';').filter(p => p.trim());
+                    const pics = item.pictures.split(' | ').filter(p => p.trim());
                     if (pics.length > 0) {
                         picturesHtml = `<div class="pictures-list">${pics.map((p, i) => `<a href="${p.trim()}" target="_blank">Img ${i+1}</a>`).join(' ')}</div>`;
                     }
@@ -512,7 +529,7 @@
 
         function updateStats(data) {
             const manufacturers = new Set(data.map(item => item.manufacturer).filter(m => m)).size;
-            const withImages = data.filter(item => item.pictures && item.pictures.split(';').filter(p => p.trim()).length > 0).length;
+            const withImages = data.filter(item => item.pictures && item.pictures.split(' | ').filter(p => p.trim()).length > 0).length;
             const forSale = data.filter(item => item.listing_type === 'For Sale').length;
 
             document.getElementById('totalItems').textContent = data.length;

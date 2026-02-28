@@ -139,18 +139,39 @@ class SurplusScraper:
                 listing_data['description'] = text
                 break
 
-        # Extract main image only - img.imgprev
+        # Extract all product images - multiple methods to ensure we get everything
+        seen_urls = set()
+
+        # Method 1: Get main image from img.imgprev
         main_img = soup.select_one('img.imgprev')
         if main_img:
             src = main_img.get('src')
             if src:
-                # Clean up the image path - remove any extra parameters
                 src = src.split('?')[0]
                 full_url = urljoin(self.BASE_URL, src)
                 listing_data['pictures'].append(full_url)
-                # DEBUG: Only add ONE image, clear any extras
-                if len(listing_data['pictures']) > 1:
-                    listing_data['pictures'] = [listing_data['pictures'][0]]
+                seen_urls.add(src)
+
+        # Method 2: Get additional images from a.addlImage links
+        addl_image_links = soup.select('a.addlImage')
+        for link in addl_image_links:
+            href = link.get('href')
+            if href and href not in seen_urls:
+                href = href.split('?')[0]
+                full_url = urljoin(self.BASE_URL, href)
+                listing_data['pictures'].append(full_url)
+                seen_urls.add(href)
+
+        # Method 3: Fallback - find all clientresources images (product images)
+        all_imgs = soup.find_all('img', src=re.compile(r'clientresources', re.IGNORECASE))
+        for img in all_imgs:
+            src = img.get('src')
+            if src and src not in seen_urls:
+                src = src.split('?')[0]
+                if re.search(r'\.(jpg|jpeg|png|gif|bmp|webp)', src, re.IGNORECASE):
+                    full_url = urljoin(self.BASE_URL, src)
+                    listing_data['pictures'].append(full_url)
+                    seen_urls.add(src)
 
         # Extract all table data at once for better accuracy
         # The site uses a specific table structure with td.txtb (labels) and td.txt (values)
@@ -193,19 +214,28 @@ class SurplusScraper:
 
         return listing_data
 
-    def discover_listings(self, max_items: Optional[int] = None) -> List[str]:
+    def discover_listings(self, max_items: Optional[int] = None, category_menuid: Optional[str] = None) -> List[str]:
         """
         Discover all item listings from the 'All Items' pages.
         Uses pagination to get all available items.
+
+        Args:
+            max_items: Maximum number of items to discover
+            category_menuid: Category ID to filter (e.g., 'm', 'm_5', 'm_5_5'). None for all categories.
         """
         item_numbers = []
         start_rec = 1
         items_per_page = 100
 
-        print("Discovering listings from all items pages...")
+        if category_menuid:
+            print(f"Discovering listings from category: {category_menuid}...")
+        else:
+            print("Discovering listings from all items pages...")
 
         while True:
-            all_items_url = f"{self.BASE_URL}mAllitems.cfm?menuid=m&subject=1&startRec={start_rec}"
+            # Use the specified category or default to all items
+            menuid = category_menuid if category_menuid else 'm'
+            all_items_url = f"{self.BASE_URL}mAllitems.cfm?menuid={menuid}&subject=1&startRec={start_rec}"
             soup = self.get_soup(all_items_url)
 
             if not soup:
@@ -245,14 +275,15 @@ class SurplusScraper:
         print(f"Total items discovered: {len(item_numbers)}")
         return item_numbers
 
-    def scrape_all_listings(self, max_items: Optional[int] = None, progress_callback=None) -> List[Dict[str, any]]:
+    def scrape_all_listings(self, max_items: Optional[int] = None, progress_callback=None, category_menuid: Optional[str] = None) -> List[Dict[str, any]]:
         """
         Scrape all discovered listings.
         Args:
             max_items: Maximum number of items to scrape (None for all)
             progress_callback: Function called with (current, total, url) during scraping
+            category_menuid: Category ID to filter (e.g., 'm', 'm_5', 'm_5_5'). None for all categories.
         """
-        item_numbers = self.discover_listings(max_items)
+        item_numbers = self.discover_listings(max_items, category_menuid)
         all_data = []
 
         for i, item_no in enumerate(item_numbers):

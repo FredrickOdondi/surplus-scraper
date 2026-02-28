@@ -24,6 +24,7 @@ scraping_status = {}
 
 class ScrapingRequest(BaseModel):
     max_listings: Optional[int] = None
+    category_menuid: Optional[str] = None
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -38,12 +39,12 @@ async def start_scraping(background_tasks: BackgroundTasks, request: ScrapingReq
     job_id = datetime.now().strftime("%Y%m%d_%H%M%S")
     scraping_status[job_id] = {"status": "pending", "progress": 0, "total": 0, "current_url": ""}
 
-    background_tasks.add_task(run_scraping_job, job_id, request.max_listings)
+    background_tasks.add_task(run_scraping_job, job_id, request.max_listings, request.category_menuid)
 
     return {"job_id": job_id, "status": "started"}
 
 
-def run_scraping_job(job_id: str, max_listings: Optional[int] = None):
+def run_scraping_job(job_id: str, max_listings: Optional[int] = None, category_menuid: Optional[str] = None):
     """Run the scraping job"""
     scraping_status[job_id] = {"status": "running", "progress": 0, "total": 0, "current_url": "Initializing..."}
 
@@ -57,12 +58,12 @@ def run_scraping_job(job_id: str, max_listings: Optional[int] = None):
 
     try:
         scraper = SurplusScraper()
-        all_data = scraper.scrape_all_listings(max_items=max_listings, progress_callback=progress_callback)
+        all_data = scraper.scrape_all_listings(max_items=max_listings, progress_callback=progress_callback, category_menuid=category_menuid)
 
         # Convert pictures list to string for CSV export
         for item in all_data:
             if isinstance(item.get('pictures'), list):
-                item['pictures'] = '; '.join(item['pictures']) if item['pictures'] else ''
+                item['pictures'] = ' | '.join(item['pictures']) if item['pictures'] else ''
 
         scraped_data_store[job_id] = all_data
         scraping_status[job_id] = {
